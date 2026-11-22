@@ -11,6 +11,10 @@ export function TripStats({ doc }: { doc: GameDocument }) {
         <span>抛竿次数</span>
       </div>
       <div>
+        <strong>{String(doc.stats.cleanCatches).padStart(2, "0")}</strong>
+        <span>无救援上岸</span>
+      </div>
+      <div>
         <strong>{String(doc.stats.released).padStart(2, "0")}</strong>
         <span>已放流</span>
       </div>

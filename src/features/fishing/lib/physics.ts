@@ -1,4 +1,5 @@
 import type { Session, GameDocument, FishSpecies } from "../../../shared/types";
+import { CLIP_TENSION_CAP } from "../../../shared/types";
 import { clamp } from "../../../shared/random";
 export function fightStep(
   s: Session,
@@ -12,12 +13,21 @@ export function fightStep(
   const target = s.reeling
     ? 0.28 + load * 0.65 + surge * 0.27
     : 0.12 + surge * 0.1;
-  const tension = clamp(s.tension + (target - s.tension) * dt * 2, 0, 1.2);
+  // 稳线夹把张力目标与上限同时压住，给玩家一个缓解过载的救援窗口。
+  const cap = s.rescue.clip ? CLIP_TENSION_CAP : 1.2;
+  const tension = clamp(
+    s.tension + (target - s.tension) * dt * 2,
+    0,
+    cap,
+  );
   const energy = clamp(s.energy + (s.reeling ? -doc.power * 0.07 : 0.025) * dt);
+  // 浸泡饵失效会削弱对鱼的牵制：收线收益按效力折算。
+  const soakFactor = 0.35 + 0.65 * s.soak;
   const progress = clamp(
     s.progress +
       (s.reeling
-        ? (doc.power * (0.13 - energy * 0.035)) / (1 + fish.strength * 0.3)
+        ? ((doc.power * (0.13 - energy * 0.035)) / (1 + fish.strength * 0.3)) *
+          soakFactor
         : -0.012) *
         dt,
   );
@@ -44,6 +54,8 @@ export function fightStep(
           : "鱼儿游回了深水。下一竿，再试一次。"
       : progress >= 1
         ? "漂亮！收获了一份来自湖水的礼物。"
-        : "按住收线；张力过高时松开，让鱼线歇一歇。",
+        : s.rescue.clip
+          ? "稳线夹正在护线，可以大胆收线；它只在这一竿生效。"
+          : "按住收线；张力过高时松开，让鱼线歇一歇。",
   };
 }

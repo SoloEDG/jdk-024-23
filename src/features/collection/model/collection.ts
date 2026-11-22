@@ -6,6 +6,7 @@ export function landCatch(
   now: number,
 ): GameDocument {
   if (!s.fish || doc.bag.some((c) => c.id === s.id)) return doc;
+  const assisted = s.rescue.clip || s.rescue.spareBait;
   const item: Catch = {
     id: s.id,
     fish: s.fish,
@@ -15,12 +16,17 @@ export function landCatch(
     time: now,
     duration: s.duration,
     peakTension: s.peak,
+    assisted,
   };
   return {
     ...doc,
     bag: [item, ...doc.bag],
     journal: recordCatch(doc.journal, item),
-    stats: { ...doc.stats, catches: doc.stats.catches + 1 },
+    stats: {
+      ...doc.stats,
+      catches: doc.stats.catches + 1,
+      cleanCatches: doc.stats.cleanCatches + (assisted ? 0 : 1),
+    },
   };
 }
 export function releaseCatch(doc: GameDocument, id: string): GameDocument {

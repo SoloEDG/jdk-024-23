@@ -54,4 +54,13 @@ export const challenges: Challenge[] = [
     reward: "护水徽章",
     measure: (d) => d.stats.released,
   },
+  {
+    id: "clean",
+    unlockAt: 2,
+    name: "标准无救援",
+    description: "不使用稳线夹或备用饵，独立完成 3 次上岸",
+    target: 3,
+    reward: "纯粹者徽章",
+    measure: (d) => d.stats.cleanCatches,
+  },
 ];

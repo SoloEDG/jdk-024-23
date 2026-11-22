@@ -88,7 +88,10 @@ export function CollectionPanel({
             <div className="bag-item" key={c.id}>
               <FishIllustration fish={species(c.fish)} />
               <span>
-                <strong>{species(c.fish).name}</strong>
+                <strong>
+                  {species(c.fish).name}
+                  {c.assisted && <em className="assisted-tag">辅助</em>}
+                </strong>
                 <small>{c.weight.toFixed(2)} kg</small>
               </span>
               <button

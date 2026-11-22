@@ -1,7 +1,48 @@
-import { Fish, MousePointer2, RotateCcw, Anchor } from "lucide-react";
+import {
+  Fish,
+  MousePointer2,
+  RotateCcw,
+  Anchor,
+  ShieldCheck,
+  FlagOff,
+} from "lucide-react";
 import type { Command } from "../../../shared/commands";
 import type { GameDocument, Session } from "../../../shared/types";
 import { species } from "../../../shared/catalog";
+
+function GearPill({
+  label,
+  stock,
+  used,
+  disabled,
+  onClick,
+  hint,
+}: {
+  label: string;
+  stock: number;
+  used: boolean;
+  disabled: boolean;
+  onClick: () => void;
+  hint: string;
+}) {
+  const cant = used || stock < 1 || disabled;
+  return (
+    <button
+      className={"gear-pill " + (used ? "used" : "")}
+      disabled={cant}
+      onClick={onClick}
+      title={hint}
+      aria-label={`${label}（库存 ${stock}）`}
+    >
+      <ShieldCheck size={14} />
+      <span>
+        {label} <b>×{stock}</b>
+      </span>
+      <small>{used ? "本竿已用" : hint}</small>
+    </button>
+  );
+}
+
 export function FishingPanel({
   doc,
   session: s,
@@ -12,13 +53,16 @@ export function FishingPanel({
   send: (c: Command) => void;
 }) {
   const finish = s.phase === "landed" || s.phase === "escaped";
+  const fighting = s.phase === "fighting";
+  const canRescue = ["waiting", "bite", "fighting"].includes(s.phase);
+  const assisted = s.rescue.clip || s.rescue.spareBait;
   return (
     <div className="fishing-controls">
       <div className="live-status" role="status">
         <span className={"status-dot " + s.phase} />
         <span>{s.message}</span>
       </div>
-      {s.phase === "fighting" && (
+      {fighting && (
         <div className="fight-meters">
           <label>
             鱼线张力 <strong>{Math.round(s.tension * 100)}%</strong>
@@ -40,6 +84,45 @@ export function FishingPanel({
             鱼的体力 {Math.round(s.energy * 100)}% · 松线{" "}
             {s.slackTime.toFixed(1)} / 5 秒
           </small>
+        </div>
+      )}
+      {canRescue && (
+        <div className="away-strip" aria-label="续战状态">
+          <span>
+            浸泡饵效力 <b>{Math.round(s.soak * 100)}%</b>
+          </span>
+          <span>
+            本竿累计离开 <b>{Math.round(s.awayTotal)}s</b> / 免费暂停 60s
+          </span>
+          {assisted && <em className="assisted-tag">已使用辅助救援</em>}
+        </div>
+      )}
+      {canRescue && (
+        <div className="rescue-row">
+          <GearPill
+            label="稳线夹"
+            stock={doc.gear.lineClips}
+            used={s.rescue.clip}
+            disabled={s.phase !== "fighting"}
+            hint={s.phase === "fighting" ? "压住张力、清空过载" : "仅搏鱼阶段可用"}
+            onClick={() => send({ type: "rescue-clip" })}
+          />
+          <GearPill
+            label="备用饵"
+            stock={doc.gear.spareBaits}
+            used={s.rescue.spareBait}
+            disabled={false}
+            hint="恢复浸泡饵效力并缓和局面"
+            onClick={() => send({ type: "rescue-bait" })}
+          />
+          <button
+            className="abandon-btn"
+            onClick={() => send({ type: "abandon" })}
+            title="放弃本竿，已消耗的鱼饵与道具不返还"
+          >
+            <FlagOff size={14} />
+            放弃本竿
+          </button>
         </div>
       )}
       <div className="action-row">
@@ -82,7 +165,7 @@ export function FishingPanel({
             提竿！
           </button>
         )}
-        {s.phase === "fighting" && (
+        {fighting && (
           <button
             className={"primary reel-button " + (s.reeling ? "held" : "")}
             onPointerDown={(e) => {
@@ -122,8 +205,13 @@ export function FishingPanel({
             <strong>
               {species(s.fish).name} · {s.weight.toFixed(2)} kg
             </strong>
+            {assisted && <em className="assisted-tag">辅助捕获</em>}
           </span>
-          <small>已放入背包，图鉴同步记录</small>
+          <small>
+            {assisted
+              ? "已放入背包并标记辅助，不计入标准无救援挑战"
+              : "已放入背包，图鉴同步记录"}
+          </small>
         </div>
       )}
     </div>

@@ -9,16 +9,39 @@ import {
   ArrowUpRight,
   X,
   Compass,
+  AlertTriangle,
+  ShieldCheck,
+  PackageOpen,
 } from "lucide-react";
 import { isBusy } from "../shared/initial";
 import { WaterPanel, WaterConditions, water } from "../features/waters";
 import { BaitPanel, RigPanel } from "../features/tackle";
-import { LakeScene, FishingPanel } from "../features/fishing";
+import { LakeScene, FishingPanel, ResumeModal } from "../features/fishing";
 import { CollectionPanel } from "../features/collection";
 import { ChallengePanel, TripStats } from "../features/challenges";
 import { useGame } from "./useGame";
+import type { SaveStep } from "../shared/types";
+
+const stepLabels: Record<SaveStep, string> = {
+  none: "尚无现场",
+  cast: "已保存到抛竿",
+  checkpoint: "已保存到最近检查点",
+  rescue: "已保存到救援扣料",
+  landed: "已保存到上岸结算",
+  escaped: "已保存到脱钩结算",
+  cleared: "已保存到空闲状态",
+};
+
 export function App() {
-  const { state, send, saved } = useGame();
+  const {
+    state,
+    send,
+    saved,
+    saveInfo,
+    awayElapsed,
+    resume,
+    readOnly,
+  } = useGame();
   const { doc, session } = state;
   const [help, setHelp] = useState(false);
   const busy = isBusy(session);
@@ -52,9 +75,26 @@ export function App() {
           </a>
         </nav>
         <div className="header-end">
-          <span className="save-state">
-            <Check size={12} />
-            {saved ? "手记已保存" : "本地保存不可用"}
+          <span
+            className={"save-state " + (saved ? "" : "save-failed")}
+            title={
+              saved
+                ? `${stepLabels[saveInfo.step]} · 每秒最多保存一次完整现场`
+                : "本地存储写入失败，进度可能无法保留"
+            }
+          >
+            {saved ? <Check size={12} /> : <AlertTriangle size={12} />}
+            {readOnly
+              ? "本地保存不可用"
+              : saved
+                ? stepLabels[saveInfo.step]
+                : "保存失败，进度可能丢失"}
+          </span>
+          <span className="gear-badge" title="续战救援道具库存">
+            <ShieldCheck size={13} />
+            {doc.gear.lineClips}
+            <PackageOpen size={13} />
+            {doc.gear.spareBaits}
           </span>
           <button
             aria-label="垂钓指南"
@@ -88,7 +128,7 @@ export function App() {
             <WaterPanel doc={doc} busy={busy} send={send} />
             <div className="left-footer">
               <span className="online-dot" />
-              离线也能享受垂钓时光
+              离线也能享受垂钓时光 · 离开可续战
             </div>
           </aside>
           <div className="center-column">
@@ -155,6 +195,17 @@ export function App() {
           {state.notice}
         </div>
       )}
+      {awayElapsed !== null && isBusy(session) && (
+        <ResumeModal
+          doc={doc}
+          session={session}
+          elapsed={awayElapsed}
+          savedStep={saveInfo.step}
+          savedOk={saveInfo.ok}
+          onResume={resume}
+          send={send}
+        />
+      )}
       {help && (
         <div className="modal-backdrop" onClick={() => setHelp(false)}>
           <section
@@ -188,7 +239,11 @@ export function App() {
               </li>
             </ol>
             <p>
-              离开页面时对抗暂停；刷新会结束本次垂钓，已经消耗的鱼饵不会返还。
+              刷新或切走页面不再结束垂钓：蓄力、等待、咬钩和搏鱼都会保留。同一竿累计离开的前 60
+              秒完全暂停；超过后鱼会恢复体力、浸泡饵逐渐失效，反复短退不会刷新免费额度。返回后可消耗稳线夹或备用饵救援，也可以放弃本竿；救援会被标记为辅助，不计入标准无救援挑战。
+            </p>
+            <p>
+              完整现场每秒最多保存一次，抛竿、救援扣料和上岸会立即保存。若写入失败或两次保存之间关页，恢复以最后一次成功存档为准：已扣道具不返还、已上岸的鱼不会重复发放。
             </p>
             <button className="primary" onClick={() => setHelp(false)}>
               去湖边坐坐
